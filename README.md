@@ -10,3 +10,4 @@ In this challenge, we tried several methods to access Landsat 8 and 9 data.
 * [Google Earth Engine - Landsat Algorithms](https://developers.google.com/earth-engine/guides/landsat)
 * [Landsat STAC Browser](https://landsatlook.usgs.gov/stac-browser/)
 * [Stac API URL](https://landsatlook.usgs.gov/stac-server/)
+* [SpatioTemporal Asset Catalog Github](https://github.com/radiantearth/stac-spec)

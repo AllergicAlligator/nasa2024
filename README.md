@@ -4,6 +4,10 @@
 
 In this challenge, we tried several methods to access Landsat 8 and 9 data.
 
+Project slides: https://docs.google.com/presentation/d/1CqZbJLBj3N88yThdiUsYIYQHPrPxs49yEqZsTqCDekQ/edit?usp=sharing
+Final demo: https://nasa2024.onrender.com
+
+
 * [Registry of Open Data on AWS](https://registry.opendata.aws/usgs-landsat/)
 * [Landsat on AWS](https://docs.opendata.aws/landsat-pds/readme.html)
 * [SpatioTemporal Asset Catalog (STAC)](https://www.usgs.gov/landsat-missions/spatiotemporal-asset-catalog-stac)

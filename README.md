@@ -1,4 +1,4 @@
-# nasa2024
+# NASA 2024
 
 ## Challenge: [Landsat Reflectance Data: On the Fly and at Your Fingertips](https://www.spaceappschallenge.org/nasa-space-apps-2024/challenges/landsat-reflectance-data-on-the-fly-and-at-your-fingertips/)
 

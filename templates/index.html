@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Landsat Satellite Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+<body>
+    <h1>Landsat Satellite Tracker</h1>
+    <div id="map" style="height: 400px;"></div>
+    <button onclick="getSatellitePass()">Get Satellite Pass</button>
+    <button onclick="getLandsatData()">Get Landsat Data</button>
+    <div id="results"></div>
+    <br><br>
+    <div id="localStorage"></div>
+    <br><br>
+    <div id="notify">
+        <h3>Notification Settings:</h3>
+        <label for="landsat-select">Landat of Interest:</label>
+        <select id="landsat-select">
+        </select>
+
+        <br><br>
+
+        <label for="time-select">Leading time for notification:</label>
+        <select id="time-select">
+            <option value="0.5">0.5 hr</option>
+            <option value="1">1 hr</option>
+            <option value="2">2 hr</option>
+            <option value="4">4 hr</option>
+            <option value="6">6 hr</option>
+            <option value="12">12 hr</option>
+        </select>
+
+        <br><br>
+
+        <label for="line-token">Enter LINE Notify Token:</label>
+        <input type="text" id="line-token" placeholder="Line Notify Token">
+
+        <br><br>
+
+        <button id="save-button">Record</button>
+        <button id="delete-button">Delete</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([25.0330, 121.5654], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+        }).addTo(map);
+
+        var targetLocation;
+        var currentMarker = null;
+
+        map.on('click', function(e) {
+            if (currentMarker) {
+                map.removeLayer(currentMarker);
+            }
+            // 取得經緯度
+            var lat = e.latlng.lat;
+            var lon = e.latlng.lng;
+
+            console.log(e.latlng);
+
+            // 經度修正，將範圍限制在 -180 到 180 之間
+            lon = ((lon + 180) % 360 + 360) % 360 - 180;
+
+            targetLocation = {
+                'lat':lat,
+                'lng':lon
+            };
+            currentMarker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
+        });
+
+        function getSatellitePass() {
+            if (!targetLocation) {
+                alert('Please select a location on the map!');
+                return;
+            }
+            fetch('/satellite_pass', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    latitude: targetLocation.lat,
+                    longitude: targetLocation.lng
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                let resultsDiv = document.getElementById('results');
+                let landsatSelect = document.getElementById('landsat-select');
+                landsatSelect.innerHTML = "";
+                resultsDiv.innerHTML = `<h3>Satellite Pass Times:</h3>`;
+                data.forEach(pass => {
+                    console.log(pass);
+                    resultsDiv.innerHTML += `<p><b>(${pass.name})</b> ${pass.event}: ${pass.time}</p>`;
+                    if (`${pass.event}`!="set")
+                    {
+                        landsatSelect.innerHTML += `<option value="${pass.time}"><b>(${pass.name})</b> ${pass.event}: ${pass.time}</option>`;
+                    }
+                });
+            });
+            showNotifyDiv();
+        }
+
+        function getLandsatData() {
+            if (!targetLocation) {
+                alert('Please select a location on the map!');
+                return;
+            }
+            fetch('/get_landsat_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    latitude: targetLocation.lat,
+                    longitude: targetLocation.lng
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                let resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = `<h3>Landsat Data:</h3><img src="${data.lastest}" width="400"><img src="${data.least_cloud}" width="400"><br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            });
+        }
+
+        function hideNotifyDiv() {
+            document.getElementById('notify').style.display = 'none';
+        }
+
+        function showNotifyDiv() {
+            document.getElementById('notify').style.display = 'block'; // or 'inline', 'flex', etc.
+        }
+
+        // Record button event handler
+        document.getElementById('save-button').addEventListener('click', () => {
+            const landsatTime = document.getElementById('landsat-select').value;
+            const selectedTime = document.getElementById('time-select').value;
+            const lineToken = document.getElementById('line-token').value;
+
+            if (lineToken) {
+                const data = {
+                    latitude: targetLocation.lat,
+                    longitude: targetLocation.lng,
+                    time: selectedTime,
+                    token: lineToken,
+                    savedTime: landsatTime, // 儲存為 RFC3339 格式的時間
+                };
+
+                // save to Local Storage
+                localStorage.setItem('lineNotifyData', JSON.stringify(data));
+                alert('Token recorded!');
+                // show saved data
+                let savedDiv = document.getElementById('localStorage');
+                console.log(data);
+                savedDiv.innerHTML = "<h3>Saved Setting:</h3>"
+                savedDiv.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } else {
+                alert('Please enter your LINE Notify Token');
+            }
+        });
+
+        // 刪除按鈕事件處理
+        document.getElementById('delete-button').addEventListener('click', () => {
+            localStorage.removeItem('lineNotifyData');
+            alert('Token deleted!');
+            let savedDiv = document.getElementById('localStorage');
+            savedDiv.innerHTML = "";
+        });
+
+        // 設置一個 interval 來檢查時間
+        setInterval(() => {
+            const savedData = JSON.parse(localStorage.getItem('lineNotifyData'));
+
+            if (savedData) {
+                const currentTime = new Date();
+                const savedTime = new Date(savedData.savedTime); // 將 RFC3339 格式轉回 Date 物件
+                if (savedTime < currentTime)
+                {
+                    alert("Landsat has passed!");
+                    localStorage.removeItem('lineNotifyData'); // 通知後刪除紀錄
+                    hideNotifyDiv();
+                    let savedDiv = document.getElementById('localStorage');
+                    savedDiv.innerHTML = "";
+                }
+                else
+                {
+                    const timeDiffInHours = (savedTime - currentTime) / (1000 * 60 * 60);
+
+                    if (timeDiffInHours <= savedData.time) {
+                        sendLineNotify(savedData.token, "Landsat Approaching！");
+                        //localStorage.removeItem('lineNotifyData'); // 通知後刪除紀錄
+                    }
+
+                }
+                
+            }
+        }, 300000); // Check every 5 minutes
+
+        // 發送 LINE Notify 通知
+        function sendLineNotify(token, message) {
+            /*
+            const url = 'https://notify-api.line.me/api/notify';
+            console.log(token);
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({
+                    'message': message
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 200) {
+                    alert('Notification Sent!');
+                } else {
+                    alert('Notification Sent Failed!');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Notification Sent Failed!');
+            });
+            */
+
+            fetch('/send_notify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    token: token,
+                    message: message
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+
+
+        }
+
+        hideNotifyDiv();
+    </script>
+</body>
+</html>
